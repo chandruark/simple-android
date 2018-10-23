@@ -53,7 +53,7 @@ class PatientSummaryScreenControllerTest {
   private val prescriptionRepository = mock<PrescriptionRepository>()
   private val medicalHistoryRepository = mock<MedicalHistoryRepository>()
   private val patientUuid = UUID.randomUUID()
-  private val clock = Clock.fixed(Instant.now(), UTC)
+  private val clock = Clock.fixed(Instant.EPOCH.plus(Duration.ofDays(30L)), UTC)
 
   private val uiEvents = PublishSubject.create<UiEvent>()
   private val configEmitter = BehaviorSubject.create<PatientSummaryConfig>()
@@ -379,6 +379,61 @@ class PatientSummaryScreenControllerTest {
         hasHadKidneyDisease = question == HAS_HAD_A_KIDNEY_DISEASE,
         hasDiabetes = question == HAS_DIABETES)
     verify(medicalHistoryRepository).save(eq(updatedMedicalHistory), any())
+  }
+
+  @Test
+  @Parameters(method = "params for editing blood pressures")
+  fun `when blood pressure is clicked for editing, only those recorded in a given period must be edited`(
+      bpEditableFor: Duration,
+      bloodPressureMeasurement: BloodPressureMeasurement,
+      shouldBeEditable: Boolean
+  ) {
+    val config = PatientSummaryConfig(numberOfBpPlaceholders = 0, bpEditableFor = bpEditableFor)
+    configEmitter.onNext(config)
+
+    uiEvents.onNext(PatientSummaryBpClicked(bloodPressureMeasurement))
+
+    if(shouldBeEditable) {
+      verify(screen).showBloodPressureUpdateSheet(bloodPressureMeasurement.uuid)
+    } else {
+      verify(screen, never()).showBloodPressureUpdateSheet(any())
+    }
+  }
+
+  @Suppress("Unused")
+  private fun `params for editing blood pressures`(): List<List<Any>> {
+    val duration1 = Duration.ofMinutes(1L)
+    val duration1Millis = duration1.toMillis()
+    val baseInstant1 = Instant.now(clock)
+
+    val instants1 = listOf(
+        baseInstant1.minusMillis(duration1Millis * 2) to false,
+        baseInstant1.minusMillis((duration1Millis * 0.5).toLong()) to true,
+        baseInstant1.minusMillis(duration1Millis) to true,
+        baseInstant1 to true
+    )
+
+    val duration2 = Duration.ofDays(2L)
+    val duration2Millis = duration2.toMillis()
+    val baseInstant2 = Instant.now(clock)
+
+    val instants2 = listOf(
+        baseInstant2.minusMillis(duration2Millis * 2) to false,
+        baseInstant2.minusMillis((duration2Millis * 0.5).toLong()) to true,
+        baseInstant2.minusMillis(duration2Millis) to true,
+        baseInstant2 to true
+    )
+
+    return listOf(
+        listOf<Any>(duration1, PatientMocker.bp(createdAt = instants1[0].first), instants1[0].second),
+        listOf<Any>(duration1, PatientMocker.bp(createdAt = instants1[1].first), instants1[1].second),
+        listOf<Any>(duration1, PatientMocker.bp(createdAt = instants1[2].first), instants1[2].second),
+        listOf<Any>(duration1, PatientMocker.bp(createdAt = instants1[3].first), instants1[3].second),
+        listOf<Any>(duration2, PatientMocker.bp(createdAt = instants2[0].first), instants2[0].second),
+        listOf<Any>(duration2, PatientMocker.bp(createdAt = instants2[1].first), instants2[1].second),
+        listOf<Any>(duration2, PatientMocker.bp(createdAt = instants2[2].first), instants2[2].second),
+        listOf<Any>(duration2, PatientMocker.bp(createdAt = instants2[3].first), instants2[3].second)
+    )
   }
 
   @Suppress("unused")
