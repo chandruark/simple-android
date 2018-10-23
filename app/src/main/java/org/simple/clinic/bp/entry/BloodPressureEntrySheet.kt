@@ -39,10 +39,6 @@ class BloodPressureEntrySheet : BottomSheetActivity() {
     private const val KEY_UUID = "uuid"
     private const val EXTRA_WAS_BP_SAVED = "wasBpSaved"
 
-    private enum class OpenAs {
-      NEW_BP, UPDATE_BP
-    }
-
     fun intentForNewBp(context: Context, patientUuid: UUID): Intent {
       return Intent(context, BloodPressureEntrySheet::class.java)
           .putExtra(KEY_OPEN_AS, OpenAs.NEW_BP)
@@ -90,8 +86,9 @@ class BloodPressureEntrySheet : BottomSheetActivity() {
   }
 
   private fun sheetCreates(): Observable<UiEvent> {
-    val patientUuid = intent.extras.getSerializable(KEY_UUID) as UUID
-    return Observable.just(BloodPressureEntrySheetCreated(patientUuid))
+    val patientUuid = intent.extras!!.getSerializable(KEY_UUID) as UUID
+    val openAs = intent.extras!!.getSerializable(KEY_OPEN_AS) as OpenAs
+    return Observable.just(BloodPressureEntrySheetCreated(openAs, patientUuid))
   }
 
   private fun systolicTextChanges() = RxTextView.textChanges(systolicEditText)
@@ -158,5 +155,10 @@ class BloodPressureEntrySheet : BottomSheetActivity() {
   fun showDiastolicEmptyError() {
     errorTextView.text = getString(R.string.bloodpressureentry_error_diastolic_empty)
     errorTextView.visibility = View.VISIBLE
+  }
+
+  fun updateBpMeasurements(systolic: Int, diastolic: Int) {
+    systolicEditText.setText(systolic.toString())
+    diastolicEditText.setText(diastolic.toString())
   }
 }
