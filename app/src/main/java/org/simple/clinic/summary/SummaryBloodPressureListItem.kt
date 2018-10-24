@@ -27,7 +27,11 @@ data class SummaryBloodPressureListItem(
   override fun getLayout() = R.layout.list_patientsummary_bp_measurement
 
   override fun createViewHolder(itemView: View): BpViewHolder {
-    return BpViewHolder(itemView)
+    val viewHolder =  BpViewHolder(itemView)
+
+    itemView.setOnClickListener { uiEvents.onNext(PatientSummaryBpClicked(measurement)) }
+
+    return viewHolder
   }
 
   @SuppressLint("SetTextI18n")
