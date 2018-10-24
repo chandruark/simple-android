@@ -35,7 +35,8 @@ class BloodPressureEntrySheetController @Inject constructor(
         automaticDiastolicFocusChanges(replayedEvents),
         validationErrorResets(replayedEvents),
         prefillWhenUpdatingABloodPressure(replayedEvents),
-        bpValidationsAndSaves(replayedEvents))
+        bpValidationsAndSaves(replayedEvents)
+    )
   }
 
   private fun automaticDiastolicFocusChanges(events: Observable<UiEvent>): Observable<UiChange> {
