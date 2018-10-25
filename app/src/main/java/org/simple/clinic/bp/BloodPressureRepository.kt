@@ -11,6 +11,7 @@ import org.simple.clinic.facility.FacilityRepository
 import org.simple.clinic.patient.SyncStatus
 import org.simple.clinic.patient.canBeOverriddenByServerCopy
 import org.simple.clinic.user.UserSession
+import org.threeten.bp.Clock
 import org.threeten.bp.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class BloodPressureRepository @Inject constructor(
     private val dao: BloodPressureMeasurement.RoomDao,
     private val userSession: UserSession,
-    private val facilityRepository: FacilityRepository
+    private val facilityRepository: FacilityRepository,
+    private val clock: Clock
 ) {
 
   fun saveMeasurement(patientUuid: UUID, systolic: Int, diastolic: Int): Single<BloodPressureMeasurement> {
@@ -44,13 +46,26 @@ class BloodPressureRepository @Inject constructor(
               patientUuid = patientUuid,
               facilityUuid = facility.uuid,
               userUuid = user!!.uuid,
-              createdAt = Instant.now(),
-              updatedAt = Instant.now())
+              createdAt = Instant.now(clock),
+              updatedAt = Instant.now(clock))
         }
         .flatMap {
           Completable
               .fromAction { dao.save(listOf(it)) }
               .toSingleDefault(it)
+        }
+  }
+
+  fun updateMeasurement(bloodPressureMeasurement: BloodPressureMeasurement): Completable {
+    return Single
+        .fromCallable {
+          bloodPressureMeasurement.copy(
+              updatedAt = Instant.now(clock),
+              syncStatus = SyncStatus.PENDING
+          )
+        }
+        .flatMapCompletable { updatedBloodPressureMeasurement ->
+          Completable.fromAction { dao.save(listOf(updatedBloodPressureMeasurement)) }
         }
   }
 
