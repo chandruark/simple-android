@@ -14,6 +14,7 @@ import org.simple.clinic.storage.Migration_13_14
 import org.simple.clinic.storage.Migration_14_15
 import org.simple.clinic.storage.Migration_15_16
 import org.simple.clinic.storage.Migration_16_17
+import org.simple.clinic.storage.Migration_17_18
 import org.simple.clinic.storage.Migration_6_7
 import org.simple.clinic.storage.Migration_7_8
 import org.simple.clinic.storage.Migration_8_9
@@ -405,6 +406,112 @@ class MigrationAndroidTest {
     db_17.query("""SELECT * FROM "Patient"""").use {
       assertThat(it.count).isEqualTo(2)
     }
+  }
+
+  @Test
+  fun migration_17_to_18() {
+    val db_v17 = helper.createDatabase(version = 17)
+
+    val measurementUuid1 = "ee367a66-f47e-42d8-965b-7a2b5c54f4bd"
+    val prescribedDrugUuid1 = "814132f2-f440-40cb-991c-43861c295815"
+
+    val measurementUuid2 = "fe367a66-f47e-42d8-965b-7a2b5c54f4bd"
+    val prescribedDrugUuid2 = "124132f2-f440-40cb-991c-43861c295815"
+
+    val userUuid = "a1d33096-cea6-4beb-8441-82cab2befe2d"
+    val facilityUuid = "464bcda8-b26a-484d-bb70-49b3675f4a38"
+    val patientUuid = "464bcda8-b26a-484d-bb70-59b3675f4a38"
+
+    db_v17.execSQL("""
+      INSERT INTO `Facility` VALUES (
+        '$facilityUuid',
+        'Facility name',
+        'Facility type',
+        'Street address',
+        'Village or colony',
+        'District',
+        'State',
+        'Country',
+        'Pin code',
+        '2018-09-25T11:20:42.008Z',
+        '2018-09-25T11:20:42.008Z',
+        'PENDING')
+    """)
+
+    db_v17.execSQL("""
+      INSERT INTO `BloodPressureMeasurement` VALUES(
+        '$measurementUuid1',
+        120,
+        110,
+        'IN_FLIGHT',
+        '$userUuid',
+        '$facilityUuid',
+        '$patientUuid',
+        '2018-09-25T11:20:42.008Z',
+        '2018-09-25T11:20:42.008Z')
+    """)
+
+    db_v17.execSQL("""
+      INSERT INTO `PrescribedDrug` VALUES(
+        '$prescribedDrugUuid1',
+        'Drug name',
+        'Dosage',
+        'rxNormCode',
+        0,
+        1,
+        '$patientUuid',
+        '$facilityUuid',
+        'PENDING',
+        '2018-09-25T11:20:42.008Z',
+        '2018-09-25T11:20:42.008Z')
+    """)
+
+    val db_v18 = helper.migrateTo(18, Migration_17_18())
+
+    db_v18.execSQL("DELETE FROM `Facility` WHERE `uuid` = '$facilityUuid'")
+
+    db_v18.query("SELECT * FROM `BloodPressureMeasurement`").use {
+      it.moveToNext()
+      assertThat(it.count).isEqualTo(1)
+      assertThat(it.columnCount).isEqualTo(9)
+      assertThat(it.string("uuid")).isEqualTo(measurementUuid1)
+    }
+
+    db_v18.query("SELECT * FROM `PrescribedDrug`").use {
+      it.moveToNext()
+      assertThat(it.count).isEqualTo(1)
+      assertThat(it.columnCount).isEqualTo(11)
+      assertThat(it.string("uuid")).isEqualTo(prescribedDrugUuid1)
+    }
+
+    // Inserting records for a non-existent facility shouldn't fail.
+    db_v17.execSQL("""
+      INSERT INTO `BloodPressureMeasurement` VALUES(
+        '$measurementUuid2',
+        120,
+        110,
+        'IN_FLIGHT',
+        '$userUuid',
+        'non-existent-facility-uuid',
+        '$patientUuid',
+        '2018-09-25T11:20:42.008Z',
+        '2018-09-25T11:20:42.008Z')
+    """)
+
+    db_v17.execSQL("""
+      INSERT INTO `PrescribedDrug` VALUES(
+        '$prescribedDrugUuid2',
+        'Drug name',
+        'Dosage',
+        'rxNormCode',
+        0,
+        1,
+        '$patientUuid',
+        'non-existent-facility-uuid',
+        'PENDING',
+        '2018-09-25T11:20:42.008Z',
+        '2018-09-25T11:20:42.008Z')
+    """)
   }
 }
 
